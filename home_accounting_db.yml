@@ -1,0 +1,72 @@
+parameters:
+  server: localhost
+  port: 60010
+  aesKeyFile: aesKey.dat
+  rsaKeyFile: rsaKey
+
+commands:
+  dicts:
+    id: 0
+    response: dictsResponse
+
+  getOperations:
+    id: 1
+    parameters: getParameters
+    response: getResponse
+
+dataTypes:
+  getParameters:
+    type: object
+    properties:
+      date:
+        type: uint32
+
+  getResponse:
+    type: object
+    properties:
+      totals:
+        type: totals
+      operations:
+        type: operations
+
+  totals:
+    type: array
+    items:
+      type: object
+      properties:
+        accountId:
+          type: uint16
+        summa:
+          type: int64
+
+  operations:
+    type: array
+    items:
+      type: operation
+
+  operation:
+    type: object
+    properties:
+      date:
+        type: uint32
+
+  dictsResponse:
+    type: object
+    properties:
+      accounts:
+        type: accounts
+
+  accounts:
+    type: array
+    items:
+      type: account
+
+  account:
+    type: object
+    properties:
+      id:
+        type: uint16
+      name:
+        type: string
+
+
