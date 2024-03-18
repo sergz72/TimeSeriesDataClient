@@ -2,8 +2,6 @@ package org.sz
 
 import kotlinx.serialization.Serializable
 import com.charleskorn.kaml.Yaml
-import java.io.ByteArrayInputStream
-import java.io.DataInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
@@ -12,6 +10,7 @@ import java.nio.file.Paths
 @Serializable
 data class ConfigurationDataType(
     val type: String,
+    val position: Int = 1,
     val defaultValue: String? = null,
     val items: ConfigurationDataType? = null,
     val properties: Map<String, ConfigurationDataType> = mapOf()
@@ -24,10 +23,48 @@ data class ConfigurationDataType(
             val value = Configuration.buildValue(fullName, requestParameters, defaultValue, false)!!
             translateValue(fullName, value)
         }
-        for (property in properties) {
-            result += property.value.serialize(property.key, fullName, requestParameters)
+        for (property in properties.map { Pair(it.key, it.value) }.sortedBy { it.second.position }) {
+            result += property.second.serialize(property.first, fullName, requestParameters)
         }
         return result
+    }
+
+    fun deserialize(stream: ByteBuffer, dataTypes: Map<String, ConfigurationDataType>): ResponseValue {
+        val value = deserializeThis(stream, dataTypes)
+        val values = properties
+            .map { Pair(it.key, it.value) }
+            .sortedBy { it.second.position }
+            .associate { it.first to it.second.deserialize(stream, dataTypes) }
+        return ResponseValue(value.value, value.items, value.values + values)
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    private fun deserializeThis(stream: ByteBuffer, dataTypes: Map<String, ConfigurationDataType>): ResponseValue {
+        return when (type) {
+            "int8" -> ResponseValue(stream.get().toHexString(), arrayOf(), mapOf())
+            "uint8" -> ResponseValue(stream.get().toUByte().toHexString(), arrayOf(), mapOf())
+            "int16" -> ResponseValue(stream.getShort().toHexString(), arrayOf(), mapOf())
+            "uint16" -> ResponseValue(stream.getShort().toUShort().toHexString(), arrayOf(), mapOf())
+            "int32" -> ResponseValue(stream.getInt().toHexString(), arrayOf(), mapOf())
+            "uint32" -> ResponseValue(stream.getInt().toUInt().toHexString(), arrayOf(), mapOf())
+            "int64" -> ResponseValue(stream.getLong().toHexString(), arrayOf(), mapOf())
+            "uint64" -> ResponseValue(stream.getLong().toULong().toHexString(), arrayOf(), mapOf())
+            "string" -> ResponseValue(Configuration.readStringFromByteBuffer(stream), arrayOf(), mapOf())
+            "object" -> ResponseValue(null, arrayOf(), mapOf())
+            "array" -> ResponseValue(null, deserializeArray(stream, dataTypes), mapOf())
+            else -> {
+                val dataType = dataTypes[type] ?: throw IllegalArgumentException("unknown data type $type")
+                return dataType.deserialize(stream, dataTypes)
+            }
+        }
+    }
+
+    private fun deserializeArray(stream: ByteBuffer, dataTypes: Map<String, ConfigurationDataType>): Array<ResponseValue> {
+        if (items == null) {
+            throw ResponseException("null items type")
+        }
+        val l = stream.getShort().toUShort().toInt()
+        return (0..<l).map { items.deserialize(stream, dataTypes) }.toTypedArray()
     }
 
     private fun translateValue(name: String, value: String): ByteArray {
@@ -66,20 +103,22 @@ data class ConfigurationDataType(
         }
         return "$prefix.$name"
     }
-
-    fun decode(stream: DataInputStream): Map<String, ResponseValue> {
-        val result: MutableMap<String, ResponseValue> = mutableMapOf()
-        return result
-    }
 }
 
-data class ResponseValue(val value: String?, val values: Map<String, ResponseValue>) {
+data class ResponseValue(val value: String?, val items: Array<ResponseValue>, val values: Map<String, ResponseValue>) {
     fun print(name: String) {
+        if (name.isNotEmpty()) {
+            println("$name:")
+        }
         if (value != null) {
-            println("$name $value")
+            println(value)
+        } else if (items.isNotEmpty()) {
+            for ((n, item) in items.withIndex()) {
+                item.print("Item $n")
+            }
         } else {
             for (v in values) {
-                println()
+                v.value.print(v.key)
             }
         }
     }
@@ -103,10 +142,10 @@ data class ConfigurationCommand(
     }
 
     fun printResponse(dataTypes: Map<String, ConfigurationDataType>, response: ByteArray) {
-        val data = decodeResponse(dataTypes, response)
+        decodeResponse(dataTypes, response).print("")
     }
 
-    private fun decodeResponse(dataTypes: Map<String, ConfigurationDataType>, responseData: ByteArray): Map<String, ResponseValue> {
+    private fun decodeResponse(dataTypes: Map<String, ConfigurationDataType>, responseData: ByteArray): ResponseValue {
         if (responseData.isEmpty()) {
             throw ResponseException("empty response")
         }
@@ -117,20 +156,25 @@ data class ConfigurationCommand(
         } else if (response == null) {
             throw ResponseException("response is too long")
         }
-        DataInputStream(ByteArrayInputStream(responseData)).use { stream ->
-            stream.readByte()
-            if (stream.readByte().toInt() == 0) {
-                println("successful response")
-                if (response != null) {
-                    val dataType = dataTypes[parameters] ?: throw IllegalArgumentException("null data type")
-                    return dataType.decode(stream)
+        val stream = ByteBuffer.wrap(responseData).order(ByteOrder.LITTLE_ENDIAN)
+        if (stream.get().toInt() == 0) {
+            println("successful response")
+            if (response != null) {
+                val dataType = dataTypes[response] ?: throw IllegalArgumentException("null data type")
+                val v = dataType.deserialize(stream, dataTypes)
+                if (stream.hasRemaining()) {
+                    throw ResponseException("response size mismatch")
                 }
-            } else {
-                val s = Configuration.readStringFromDataStream(stream)
-                println("error response $s")
+                return v
             }
-            return mutableMapOf()
+        } else {
+            val s = Configuration.readStringFromByteBuffer(stream)
+            if (stream.hasRemaining()) {
+                throw ResponseException("response size mismatch")
+            }
+            println("error response $s")
         }
+        return ResponseValue(null, arrayOf(), mapOf())
     }
 }
 
@@ -180,12 +224,10 @@ data class Configuration(
             return l
         }
 
-        internal fun readStringFromDataStream(stream: DataInputStream): String {
-            val l = stream.readShort().toInt()
-            val bytes = stream.readNBytes(l)
-            if (bytes.size != l) {
-                throw ResponseException("unexpected EOF")
-            }
+        internal fun readStringFromByteBuffer(buffer: ByteBuffer): String {
+            val l = buffer.getShort().toInt()
+            val bytes = ByteArray(l)
+            buffer.get(bytes, 0, l)
             return String(bytes)
         }
     }

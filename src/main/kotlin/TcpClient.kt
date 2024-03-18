@@ -9,10 +9,10 @@ class TcpClient {
                 0,//success
                 2,0, //length
                 1,0, // account id
-                2,0,0,0,0,0,0,0, //value
+                2,0,0,0,0,0,0,0, //summa
                 2,0, // account id
-                3,0,0,0,0,0,0,0, // value
-                1, // length
+                3,0,0,0,0,0,0,0, //summa
+                1, 0, // length
                 26, 2, 33, 1) // 20120102
         }
     }
