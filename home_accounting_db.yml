@@ -52,7 +52,41 @@ dataTypes:
     type: object
     properties:
       date:
+        position: 1
         type: uint32
+      accountId:
+        position: 2
+        type: uint32
+      subcategoryId:
+        position: 3
+        type: uint32
+      summa:
+        position: 4
+        type: int64
+      amount:
+        position: 5
+        type: int64
+      properties:
+        position: 6
+        type: array
+        items:
+          type: finOpProperty
+
+  finOpProperty:
+    type: object
+    properties:
+      numericValue:
+        position: 1
+        type: int64
+      stringValue:
+        position: 2
+        type: string
+      dateValue:
+        position: 3
+        type: uint32
+      code:
+        position: 4
+        type: uint8
 
   dictsResponse:
     type: object
@@ -69,8 +103,19 @@ dataTypes:
     type: object
     properties:
       id:
-        type: uint16
+        position: 1
+        type: uint32
       name:
+        position: 2
+        type: string
+      cashAccount:
+        position: 3
+        type: int32
+      activeTo:
+        position: 4
+        type: uint32
+      currency:
+        position: 5
         type: string
 
 

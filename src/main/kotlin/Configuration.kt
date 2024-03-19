@@ -106,19 +106,22 @@ data class ConfigurationDataType(
 }
 
 data class ResponseValue(val value: String?, val items: Array<ResponseValue>, val values: Map<String, ResponseValue>) {
-    fun print(name: String) {
+    fun print(name: String, level: Int = 0) {
+        val spacesBuilder = StringBuilder()
+        repeat(level) { spacesBuilder.append(' ') }
+        val spaces = spacesBuilder.toString()
         if (name.isNotEmpty()) {
-            println("$name:")
+            println("$spaces$name:")
         }
         if (value != null) {
-            println(value)
+            println("$spaces  $value")
         } else if (items.isNotEmpty()) {
             for ((n, item) in items.withIndex()) {
-                item.print("Item $n")
+                item.print("Item $n", level + 2)
             }
         } else {
             for (v in values) {
-                v.value.print(v.key)
+                v.value.print(v.key, level + 2)
             }
         }
     }
