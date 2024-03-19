@@ -186,7 +186,8 @@ data class ConfigurationParameters(
     val server: String,
     val port: Int,
     val aesKeyFile: String? = null,
-    val rsaKeyFile: String
+    val rsaKeyFile: String,
+    val label: String
 )
 
 @Serializable
@@ -250,14 +251,15 @@ data class Configuration(
         }
         val command = commands[requestId]!!
         val data = command.build(dataTypes, parametersMap)
-        val response = TcpClient.send(
-            ConfigurationParameters(
-                server = buildValue("server", parametersMap, parameters.server, false)!!,
-                port = buildValue("port", parametersMap, parameters.port.toString(), false)!!.toInt(),
-                aesKeyFile = buildValue("aesKeyFile", parametersMap, parameters.aesKeyFile, true),
-                rsaKeyFile = buildValue("rsaKeyFile", parametersMap, parameters.rsaKeyFile, false)!!
-            ), data
-        )
+        val server = buildValue("server", parametersMap, parameters.server, false)!!
+        val port = buildValue("port", parametersMap, parameters.port.toString(), false)!!.toInt()
+        val label = buildValue("label", parametersMap, parameters.label, false)!!
+        val aesKeyFile = buildValue("aesKeyFile", parametersMap, parameters.aesKeyFile, true)
+        val rsaKeyFile = buildValue("rsaKeyFile", parametersMap, parameters.rsaKeyFile, false)!!
+        val aesKey = aesKeyFile?.let { Files.readAllBytes(Paths.get(it)) }
+        val rsaKey = Files.readString(Paths.get(rsaKeyFile))
+        val client = TcpClient(rsaKey, label, aesKey, server, port)
+        val response = client.send(data)
         command.printResponse(dataTypes, response)
     }
 }

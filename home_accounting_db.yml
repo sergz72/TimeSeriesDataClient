@@ -1,8 +1,9 @@
 parameters:
   server: localhost
   port: 60010
-  aesKeyFile: aesKey.dat
-  rsaKeyFile: rsaKey
+  label: HomeAccountingDB
+  aesKeyFile: /home/sergzz/serg/vault/GoLand/key.dat
+  rsaKeyFile: /home/sergzz/serg/vault/GoLand/rsa_key.pub
 
 commands:
   dicts:
