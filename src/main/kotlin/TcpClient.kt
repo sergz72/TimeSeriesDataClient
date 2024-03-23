@@ -22,13 +22,20 @@ class TcpClient(rsaKey: String, label: String, private val aesKey: ByteArray?, p
             return contents.split('\n').filter { !it.startsWith("----") }.joinToString(separator = "")
         }
 
-        private fun decode(data: ByteArray?, aesKey: ByteArray, aesNonce: ByteArray): ByteArray {
+        internal fun encode(data: ByteArray, aesKey: ByteArray, aesNonce: ByteArray): ByteArray {
+            val key = SecretKeySpec(aesKey, "AES")
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BIT, aesNonce))
+            return cipher.doFinal(data)
+        }
+
+        internal fun decode(data: ByteArray?, aesKey: ByteArray, aesNonce: ByteArray): ByteArray {
             if (data == null) {
                 throw ResponseException("null response")
             }
             val key = SecretKeySpec(aesKey, "AES")
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(Companion.TAG_LENGTH_BIT, aesNonce))
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BIT, aesNonce))
             return cipher.doFinal(data)
         }
     }
