@@ -29,9 +29,7 @@ class TcpClient(rsaKey: String, label: String, private val aesKey: ByteArray?, p
             val key = SecretKeySpec(aesKey, "AES")
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(Companion.TAG_LENGTH_BIT, aesNonce))
-            val decoded = ByteArray(cipher.getOutputSize(data.size))
-            val length = cipher.update(data, 0, data.size, decoded, 0)
-            return decoded.copyOfRange(0, length)
+            return cipher.doFinal(data)
         }
     }
 
