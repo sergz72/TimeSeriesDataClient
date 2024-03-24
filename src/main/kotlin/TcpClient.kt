@@ -68,7 +68,10 @@ class TcpClient(rsaKey: String, label: String, private val aesKey: ByteArray?, p
                 ostream.write(encoded)
                 ostream.flush()
                 socket.getInputStream().use { istream ->
-                    val response = decode(istream.readAllBytes(), aesKey, aesNonce)
+                    val idata = istream.readAllBytes()
+                    println("Response size ${idata.size}")
+                    val response = decode(idata, aesKey, aesNonce)
+                    println("Decoded size ${response.size}")
                     if (response.size <= 32) {
                         throw ResponseException("too short response")
                     }
