@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     api("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
+    api("org.apache.commons:commons-compress:1.21")
     implementation("com.charleskorn.kaml:kaml:0.57.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }

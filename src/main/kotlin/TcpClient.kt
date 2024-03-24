@@ -1,6 +1,8 @@
 package org.sz
 
 import java.net.Socket
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.spec.MGF1ParameterSpec
@@ -71,7 +73,7 @@ class TcpClient(rsaKey: String, label: String, private val aesKey: ByteArray?, p
                     val idata = istream.readAllBytes()
                     println("Response size ${idata.size}")
                     val response = decode(idata, aesKey, aesNonce)
-                    println("Decoded size ${response.size}")
+                    //Files.write(Paths.get("data.bin"), response)
                     if (response.size <= 32) {
                         throw ResponseException("too short response")
                     }
@@ -82,6 +84,7 @@ class TcpClient(rsaKey: String, label: String, private val aesKey: ByteArray?, p
                     if (!digest.contentEquals(responseHash)) {
                         throw ResponseException("incorrect response hash")
                     }
+                    println("Decoded size ${responseData.size}")
                     return responseData
                 }
             }

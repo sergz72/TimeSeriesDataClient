@@ -1,11 +1,14 @@
 package org.sz
 
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import kotlinx.serialization.Serializable
 import com.charleskorn.kaml.Yaml
+import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.*
 
 @Serializable
 data class ConfigurationDataType(
@@ -160,24 +163,50 @@ data class ConfigurationCommand(
             throw ResponseException("response is too long")
         }
         val stream = ByteBuffer.wrap(responseData).order(ByteOrder.LITTLE_ENDIAN)
-        if (stream.get().toInt() == 0) {
-            println("successful response")
-            if (response != null) {
-                val dataType = dataTypes[response] ?: throw IllegalArgumentException("null data type")
-                val v = dataType.deserialize(stream, dataTypes)
+        when (stream.get().toInt()) {
+            0 -> {
+                println("successful response")
+                if (response != null) {
+                    return buildResponseValue(stream, dataTypes)
+                }
+            }
+            1 -> {
+                println("successful bzipped response")
+                if (response != null) {
+                    val decompressed = decompressBzip2(responseData.sliceArray(1 until responseData.size))
+                    return buildResponseValue(decompressed, dataTypes)
+                }
+            }
+            0x7F -> {
+                val s = Configuration.readStringFromByteBuffer(stream)
                 if (stream.hasRemaining()) {
                     throw ResponseException("response size mismatch")
                 }
-                return v
+                println("error response $s")
             }
-        } else {
-            val s = Configuration.readStringFromByteBuffer(stream)
-            if (stream.hasRemaining()) {
-                throw ResponseException("response size mismatch")
+            else -> {
+                println("unknown response status code")
             }
-            println("error response $s")
         }
         return ResponseValue(null, arrayOf(), mapOf())
+    }
+
+    private fun buildResponseValue(stream: ByteBuffer, dataTypes: Map<String, ConfigurationDataType>): ResponseValue {
+        val dataType = dataTypes[response] ?: throw IllegalArgumentException("null data type")
+        val v = dataType.deserialize(stream, dataTypes)
+        if (stream.hasRemaining()) {
+            throw ResponseException("response size mismatch")
+        }
+        return v
+    }
+}
+
+fun decompressBzip2(data: ByteArray): ByteBuffer {
+    val inStream = BZip2CompressorInputStream(ByteArrayInputStream(data))
+    inStream.use {
+        val decompressed = inStream.readBytes()
+        println("Decompressed size ${decompressed.size}")
+        return ByteBuffer.wrap(decompressed).order(ByteOrder.LITTLE_ENDIAN)
     }
 }
 
