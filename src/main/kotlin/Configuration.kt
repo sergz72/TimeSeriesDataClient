@@ -229,7 +229,10 @@ data class Configuration(
         }
 
         internal fun readStringFromByteBuffer(buffer: ByteBuffer): String {
-            val l = buffer.getShort().toInt()
+            val l = buffer.getShort().toUShort().toInt()
+            if (buffer.remaining() < l) {
+                throw ResponseException("incorrect string length")
+            }
             val bytes = ByteArray(l)
             buffer.get(bytes, 0, l)
             return String(bytes)

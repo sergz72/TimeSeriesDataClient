@@ -99,7 +99,17 @@ dataTypes:
     type: object
     properties:
       accounts:
+        position: 1
         type: accounts
+      categories:
+        position: 2
+        type: categories
+      subcategories:
+        position: 3
+        type: subcategories
+      hints:
+        position: 4
+        type: hints
 
   accounts:
     type: array
@@ -125,4 +135,63 @@ dataTypes:
         position: 5
         type: string
 
+  categories:
+    type: array
+    items:
+      type: category
 
+  category:
+    type: object
+    properties:
+      id:
+        position: 1
+        type: uint32
+      name:
+        position: 2
+        type: string
+
+  subcategories:
+    type: array
+    items:
+      type: subcategory
+
+  subcategory:
+    type: object
+    properties:
+      id:
+        position: 1
+        type: uint32
+      name:
+        position: 2
+        type: string
+      categoryId:
+        position: 3
+        type: uint32
+      code:
+        position: 4
+        type: uint8
+      operationCode:
+        position: 5
+        type: uint8
+      requiredProperties:
+        position: 6
+        type: array
+        items:
+          type: uint8
+
+  hints:
+    type: array
+    items:
+      type: hint
+
+  hint:
+    type: object
+    properties:
+      finOpPropertyCode:
+        position: 1
+        type: uint8
+      hints:
+        position: 2
+        type: array
+        items:
+          type: string
